@@ -1,0 +1,40 @@
+Запуск сервиса:
+1. venv\Scripts\activate
+2. python app.py
+
+Остановка:
+Ctrl + C
+
+rmdir /s /q venv (удалить папку виртуального окружения)
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+
+---------------------------------------------------------------------------------------------------------------------------
+Для "DeepPavlov/rubert-base-cased-sentence" (и большинства моделей на базе BERT) лимит — 512 токенов (токенов, а не слов!).
+Если передать больше, лишние токены будут отброшены (truncation).
+
+Другие sentence-transformers для русского языка:
+
+- cointegrated/rubert-tiny2
+    Маленькая, быстрая, хорошо подходит для коротких текстов.
+    https://huggingface.co/cointegrated/rubert-tiny2
+
+- sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    Мультиязычная, поддерживает русский, быстрая, до 256 токенов.
+    https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
+- ai-forever/sbert_large_nlu_ru
+    Большая, качественная, только русский. (Для максимального качества на русском)
+    https://huggingface.co/ai-forever/sbert_large_nlu_ru
+
+- sberbank-ai/sbert_large_mt_nlu_ru
+    Мультиязычная, поддержка русского, большая.
+    https://huggingface.co/sberbank-ai/sbert_large_mt_nlu_ru
+---------------------------------------------------------------------------------------------------------------------------
+
+Виртуальное окружение - это изолированное окружение среды (в нашем случае это окружение Python), которое позволяет нам использовать определенные версии приложений.
+Чтобы предотвратить возможный конфликт, пакетный менеджер устанавливает зависимости проекта в его собственную директорию зависимостей - venv.
+
+Добавь этот проект в удаленный репозиторий на github (url: ).
