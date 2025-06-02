@@ -5,16 +5,15 @@ from app.models.document import Base
 
 class DocEmbedding(Base):
     """
-    Model for storing document embeddings for faster search
+    Модель для хранения эмбеддингов документов для быстрого поиска
     """
-    __tablename__ = 'docs_embeddings'
+    __tablename__ = 'doc_embeddings'
     
-    id = Column(Integer, primary_key=True)
-    document_id = Column(UUID(as_uuid=True), ForeignKey('"Documents"."Id"'), nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey('"Documents"."Id"'), primary_key=True, nullable=False)
     embedding = Column(ARRAY(Float), nullable=False)
     
     # Relationship с основной таблицей документов
     # document = relationship("Document")  # если есть модель Document
     
     def __repr__(self):
-        return f"<DocEmbedding(id={self.id}, document_id={self.document_id})>" 
+        return f"<DocEmbedding(document_id={self.document_id})>" 

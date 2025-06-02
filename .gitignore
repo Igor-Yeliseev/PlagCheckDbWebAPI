@@ -50,4 +50,7 @@ tmp/
 temp/
 
 # Cursor files
-.cursor/ 
+.cursor/
+
+# Resources
+resources/ 

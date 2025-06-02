@@ -15,6 +15,9 @@ def create_app():
     
     # Register blueprints
     from app.blueprints.plag_check import plag_check_bp
+    from app.blueprints.doc_processor import doc_processor_bp
+    
     app.register_blueprint(plag_check_bp)
+    app.register_blueprint(doc_processor_bp)
     
     return app

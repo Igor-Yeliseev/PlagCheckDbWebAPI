@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 import os
 import tempfile
-from app.services.document_processor import extract_text_from_doc
-from app.services.plagiarism_checker import (
+from app.services.document_service import extract_text_from_doc
+from app.services.plag_check_service import (
     preprocess_text, 
     find_candidates_with_minhash, 
     check_plagiarism_with_transformers
@@ -15,7 +15,7 @@ plag_check_bp = Blueprint('plag_check', __name__, url_prefix='/py-api')
 @plag_check_bp.route('/check-with-db', methods=['POST'])
 def check_document():
     """
-    Endpoint for checking document plagiarism against the database
+    Эндпоинт для проверки документа на плагиат по базе данных
     """
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -27,22 +27,22 @@ def check_document():
     if not file.filename.endswith('.docx'):
         return jsonify({'error': 'Only .docx files are supported'}), 400
     
-    # Save uploaded file temporarily
+    # Сохраняем загруженный файл во временную папку
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, file.filename)
     file.save(temp_path)
     
     try:
-        # Extract text from document
+        # Извлекаем текст из документа
         text = extract_text_from_doc(temp_path)
         
-        # Preprocess text (clean, lemmatize, create shingles)
+        # Предобрабатываем текст (очистка, лемматизация, создание шинглов)
         processed_text, shingles = preprocess_text(text)
         
-        # First stage: MinHash + LSH to find candidates
+        # Первый этап: MinHash + LSH для поиска кандидатов
         candidates = find_candidates_with_minhash(shingles, threshold=0.4)
         
-        # If no candidates found, document is original
+        # Если кандидаты не найдены, документ оригинальный
         if not candidates:
             return jsonify({
                 'original': True,
@@ -50,11 +50,11 @@ def check_document():
                 'similarity': 0
             })
         
-        # Second stage: Check with transformers
+        # Второй этап: проверка с помощью трансформеров
         result = check_plagiarism_with_transformers(processed_text, candidates)
         
-        # Return result based on similarity threshold
-        if result['max_similarity'] > 0.6:
+        # Возвращаем результат на основе порога сходства
+        if result['max_similarity'] > 0.7:
             return jsonify({
                 'original': False,
                 'message': 'Обнаружен плагиат',
@@ -72,23 +72,22 @@ def check_document():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
-        # Clean up
+        # Очистка временных файлов
         os.remove(temp_path)
         os.rmdir(temp_dir)
         
-@plag_check_bp.route('/download-candidate/<int:sig_id>', methods=['GET'])
-def download_candidate(sig_id):
+@plag_check_bp.route('/download-candidate/<uuid:document_id>', methods=['GET'])
+def download_candidate(document_id):
     """
-    Endpoint for downloading a plagiarism candidate document
+    Эндпоинт для скачивания документа-кандидата на плагиат
     """
     try:
-        signature = get_signature_by_id(sig_id)
+        signature = get_signature_by_id(document_id)
         if not signature:
             return jsonify({'error': 'Signature not found'}), 404
         # Получаем ссылку на файл через signature.document.url
         url = signature.document.url if signature.document else None
         return jsonify({
-            'id': signature.id,
             'document_id': signature.document_id,
             'url': url,
             'message': 'Используйте URL для скачивания документа'

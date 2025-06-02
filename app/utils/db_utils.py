@@ -25,11 +25,11 @@ def get_db():
     finally:
         db.close()
 
-def get_signature_by_id(sig_id):
-    """Get doc signature by ID"""
+def get_signature_by_id(document_id):
+    """Get doc signature by document_id (id = document_id)"""
     db = SessionLocal()
     try:
-        return db.query(DocSignature).filter(DocSignature.id == sig_id).first()
+        return db.query(DocSignature).filter(DocSignature.document_id == document_id).first()
     finally:
         db.close()
 
@@ -56,10 +56,25 @@ def get_all_signatures():
     finally:
         db.close()
 
-def get_signatures_by_ids(sig_ids):
-    """Get doc signatures by list of IDs"""
+def get_signatures_by_ids(document_ids):
+    """Get doc signatures by list of document_ids (id = document_id)"""
     db = SessionLocal()
     try:
-        return db.query(DocSignature).filter(DocSignature.id.in_(sig_ids)).all()
+        return db.query(DocSignature).filter(DocSignature.document_id.in_(document_ids)).all()
     finally:
-        db.close() 
+        db.close()
+
+def save_embedding_to_db(document_id, embedding):
+    """Save document embedding to database"""
+    from app.models.vector_store import DocEmbedding
+    db = SessionLocal()
+    try:
+        doc_embedding = DocEmbedding(document_id=document_id, embedding=embedding)
+        db.add(doc_embedding)
+        db.commit()
+        return doc_embedding
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()

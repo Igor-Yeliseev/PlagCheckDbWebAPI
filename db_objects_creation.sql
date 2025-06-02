@@ -7,20 +7,18 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Create doc_signatures table
 CREATE TABLE IF NOT EXISTS doc_signatures (
-    id SERIAL PRIMARY KEY,
-    document_id UUID NOT NULL REFERENCES "Documents"("Id") ON DELETE CASCADE,
+    document_id UUID PRIMARY KEY REFERENCES "Documents"("Id") ON DELETE CASCADE,
     hashes INTEGER[] NOT NULL
 );
 
--- Create docs_embeddings table
-CREATE TABLE IF NOT EXISTS docs_embeddings (
-    id SERIAL PRIMARY KEY,
-    document_id UUID NOT NULL REFERENCES "Documents"("Id") ON DELETE CASCADE,
+-- Create doc_embeddings table
+CREATE TABLE IF NOT EXISTS doc_embeddings (
+    document_id UUID PRIMARY KEY REFERENCES "Documents"("Id") ON DELETE CASCADE,
     embedding FLOAT[] NOT NULL
 );
 
 -- Create indices
-CREATE INDEX IF NOT EXISTS idx_document_id ON docs_embeddings(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_id_embeddings ON doc_embeddings(document_id);
 
 -- Create a function to find similar documents based on hash Jaccard similarity
 CREATE OR REPLACE FUNCTION hash_similarity(a INTEGER[], b INTEGER[]) 

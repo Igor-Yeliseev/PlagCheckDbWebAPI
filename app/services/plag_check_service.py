@@ -8,10 +8,11 @@ import numpy as np
 import pymorphy2
 from datasketch import MinHash, LeanMinHash, MinHashLSH
 from sentence_transformers import SentenceTransformer
-import dask.bag as db
+import dask.bag as dask_bag
 from app.utils.db_utils import get_all_signatures, get_signatures_by_ids
+from app.services.document_service import download_doc_from_url
 
-# Download necessary NLTK data
+# Загрузка необходимых данных NLTK
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -22,16 +23,18 @@ try:
 except LookupError:
     nltk.download('stopwords')
 
-# Initialize tools
+# Инициализация инструментов
 morph = pymorphy2.MorphAnalyzer()
 russian_stopwords = set(stopwords.words('russian'))
 
-# Initialize transformer model
+# Инициализация трансформерной модели
 model_name = "DeepPavlov/rubert-base-cased-sentence"
-transformer_model = None  # Lazy loading
+transformer_model = None  # Ленивое создание
 
 def get_transformer_model():
-    """Get or initialize the transformer model"""
+    """
+    Получить или инициализировать трансформерную модель
+    """
     global transformer_model
     if transformer_model is None:
         transformer_model = SentenceTransformer(model_name)
@@ -39,33 +42,33 @@ def get_transformer_model():
 
 def preprocess_text(text):
     """
-    Preprocess text: remove stopwords, punctuation, lemmatize
+    Предобработка текста: удаление стоп-слов, знаков препинания, лемматизация
     
-    Args:
-        text (str): Raw text from document
+    Аргументы:
+        text (str): Исходный текст документа
         
-    Returns:
-        tuple: (processed_text, shingles)
+    Возвращает:
+        tuple: (обработанный_текст, шинглы)
     """
-    # Lowercase and remove punctuation
+    # Приведение к нижнему регистру и удаление знаков препинания
     text = text.lower()
     text = re.sub(r'[^\w\s]', '', text)
     
-    # Tokenize
+    # Токенизация
     tokens = word_tokenize(text, language='russian')
     
-    # Remove stopwords and lemmatize
+    # Удаление стоп-слов и лемматизация
     lemmatized_tokens = []
     for token in tokens:
         if token not in russian_stopwords and len(token) > 2:
             lemma = morph.parse(token)[0].normal_form
             lemmatized_tokens.append(lemma)
     
-    # Create shingles (n-grams)
+    # Создание шинглов (n-грамм)
     text_length = len(lemmatized_tokens)
     
-    # Dynamically determine shingle size based on text length
-    shingle_size = 5  # Default 
+    # Динамический выбор размера шингла в зависимости от длины текста
+    shingle_size = 5  # По умолчанию
     if text_length > 30000:
         shingle_size = 6
     
@@ -74,21 +77,21 @@ def preprocess_text(text):
         shingle = ' '.join(lemmatized_tokens[i:i+shingle_size])
         shingles.append(shingle)
     
-    # Rebuilt processed text
+    # Восстановление обработанного текста
     processed_text = ' '.join(lemmatized_tokens)
     
     return processed_text, shingles
 
 def create_minhash(shingles, num_perm=128):
     """
-    Create MinHash signature for a set of shingles
+    Создать MinHash-подпись для набора шинглов
     
-    Args:
-        shingles (list): List of shingles
-        num_perm (int): Number of permutations
+    Аргументы:
+        shingles (list): Список шинглов
+        num_perm (int): Количество перестановок
         
-    Returns:
-        MinHash: MinHash signature
+    Возвращает:
+        MinHash: MinHash-подпись
     """
     m = MinHash(num_perm=num_perm)
     for s in shingles:
@@ -97,51 +100,51 @@ def create_minhash(shingles, num_perm=128):
 
 def find_candidates_with_minhash(shingles, threshold=0.4):
     """
-    Find candidate documents using MinHash LSH
+    Найти кандидатов на плагиат с помощью MinHash LSH
     
-    Args:
-        shingles (list): List of shingles from the query document
-        threshold (float): Similarity threshold
+    Аргументы:
+        shingles (list): Список шинглов из проверяемого документа
+        threshold (float): Порог сходства
         
-    Returns:
-        list: List of document IDs that are candidates for plagiarism
+    Возвращает:
+        list: Список ID документов-кандидатов
     """
-    # Create MinHash for query document
+    # Создание MinHash для проверяемого документа
     query_minhash = create_minhash(shingles)
     
-    # Get all documents from DB
+    # Получение всех документов из БД
     all_sigs = get_all_signatures()
     if not all_sigs:
         return []
     
-    # Create LSH index with stored documents
+    # Создание LSH-индекса для сохранённых документов
     lsh = MinHashLSH(threshold=threshold, num_perm=128)
     
-    # Add all documents to LSH index
+    # Добавление всех документов в LSH-индекс
     for sig in all_sigs:
         doc_minhash = LeanMinHash(seed=42)
         doc_minhash.hashvalues = np.array(sig.hashes, dtype=np.uint32)
         lsh.insert(str(sig.id), doc_minhash)
     
-    # Query LSH index
+    # Поиск кандидатов в индексе LSH
     candidate_ids = lsh.query(query_minhash)
     
-    # Convert string IDs back to integers
+    # Преобразование строковых ID обратно в числа
     candidate_ids = [int(doc_id) for doc_id in candidate_ids]
     
     return candidate_ids
 
 def split_text_into_chunks(text, chunk_size=250, overlap=0.3):
     """
-    Split text into overlapping chunks
+    Разбить текст на перекрывающиеся чанки
     
-    Args:
-        text (str): The text to split
-        chunk_size (int): Number of words per chunk
-        overlap (float): Overlap ratio between chunks
+    Аргументы:
+        text (str): Текст для разбиения
+        chunk_size (int): Количество слов в чанке
+        overlap (float): Доля перекрытия между чанками
         
-    Returns:
-        list: List of text chunks
+    Возвращает:
+        list: Список текстовых чанков
     """
     words = text.split()
     overlap_size = int(chunk_size * overlap)
@@ -163,60 +166,60 @@ def split_text_into_chunks(text, chunk_size=250, overlap=0.3):
 
 def compute_chunk_embeddings(chunks):
     """
-    Compute embeddings for a list of text chunks using transformers
+    Вычислить эмбеддинги для списка текстовых чанков с помощью трансформеров
     
-    Args:
-        chunks (list): List of text chunks
+    Аргументы:
+        chunks (list): Список текстовых чанков
         
-    Returns:
-        np.ndarray: Array of embeddings
+    Возвращает:
+        np.ndarray: Массив эмбеддингов
     """
     model = get_transformer_model()
     
-    # Use Dask for parallelization
-    chunks_bag = db.from_sequence(chunks)
+    # Используем Dask для параллелизации
+    chunks_bag = dask_bag.from_sequence(chunks)
     embeddings = chunks_bag.map(lambda x: model.encode(x)).compute()
     
     return np.array(embeddings)
 
 def compute_average_embedding(embeddings):
     """
-    Compute average embedding from a list of embeddings
+    Вычислить средний эмбеддинг из списка эмбеддингов
     
-    Args:
-        embeddings (np.ndarray): Array of embeddings
+    Аргументы:
+        embeddings (np.ndarray): Массив эмбеддингов
         
-    Returns:
-        np.ndarray: Average embedding
+    Возвращает:
+        np.ndarray: Средний эмбеддинг
     """
     return np.mean(embeddings, axis=0)
 
 def compute_similarity(emb1, emb2):
     """
-    Compute cosine similarity between two embeddings
+    Вычислить косинусное сходство между двумя эмбеддингами
     
-    Args:
-        emb1 (np.ndarray): First embedding
-        emb2 (np.ndarray): Second embedding
+    Аргументы:
+        emb1 (np.ndarray): Первый эмбеддинг
+        emb2 (np.ndarray): Второй эмбеддинг
         
-    Returns:
-        float: Cosine similarity score
+    Возвращает:
+        float: Значение косинусного сходства
     """
     return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
 
 def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, overlap=0.3, similarity_threshold=0.5):
     """
-    Check plagiarism using transformer embeddings
+    Проверка плагиата с использованием эмбеддингов трансформеров
     
-    Args:
-        text (str): Preprocessed query text
-        candidate_ids (list): List of candidate document IDs
-        chunk_size (int): Number of words per chunk
-        overlap (float): Overlap ratio between chunks
-        similarity_threshold (float): Similarity threshold
+    Аргументы:
+        text (str): Предобработанный текст запроса
+        candidate_ids (list): Список ID документов-кандидатов
+        chunk_size (int): Количество слов в чанке
+        overlap (float): Доля перекрытия между чанками
+        similarity_threshold (float): Порог сходства
         
-    Returns:
-        dict: Result with similarity scores and details
+    Возвращает:
+        dict: Результат с оценками сходства и деталями
     """
     if not candidate_ids:
         return {
@@ -225,16 +228,16 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
             'details': {}
         }
     
-    # Get candidate documents from DB
+    # Получение документов-кандидатов из БД
     candidates = get_signatures_by_ids(candidate_ids)
     
-    # Split query text into chunks
+    # Разбиваем текст запроса на чанки
     query_chunks = split_text_into_chunks(text, chunk_size, overlap)
     
-    # Compute embeddings for query chunks
+    # Вычисляем эмбеддинги для чанков запроса
     query_embeddings = compute_chunk_embeddings(query_chunks)
     
-    # Compute average embedding for query
+    # Вычисляем средний эмбеддинг для запроса
     query_avg_embedding = compute_average_embedding(query_embeddings)
     
     result = {
@@ -243,32 +246,32 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
         'details': {}
     }
     
-    # Check similarity with each candidate
+    # Проверяем сходство с каждым кандидатом
     for sig in candidates:
         # Получаем url через sig.document.url
         doc_url = sig.document.url if sig.document else None
         doc_text = download_and_preprocess_document(doc_url)
         
-        # Split into chunks
+        # Разбиваем на чанки
         doc_chunks = split_text_into_chunks(doc_text, chunk_size, overlap)
         
-        # Compute embeddings
+        # Вычисляем эмбеддинги
         doc_embeddings = compute_chunk_embeddings(doc_chunks)
         
-        # Compute average embedding
+        # Вычисляем средний эмбеддинг
         doc_avg_embedding = compute_average_embedding(doc_embeddings)
         
-        # Compute similarity
+        # Вычисляем сходство
         similarity = compute_similarity(query_avg_embedding, doc_avg_embedding)
         
-        # If similarity exceeds threshold, add to results
+        # Если сходство превышает порог, добавляем в результат
         if similarity > similarity_threshold:
             if similarity > result['max_similarity']:
                 result['max_similarity'] = similarity
             
             result['similar_docs'].append(sig.id)
             
-            # Store chunk-level details
+            # Сохраняем детали по чанкам
             chunk_similarities = []
             for i, q_emb in enumerate(query_embeddings):
                 for j, d_emb in enumerate(doc_embeddings):
@@ -280,7 +283,7 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
                             'similarity': chunk_sim
                         })
             
-            # Sort by similarity and take top 10
+            # Сортируем по сходству и берём топ-10
             chunk_similarities.sort(key=lambda x: x['similarity'], reverse=True)
             result['details'][sig.id] = chunk_similarities[:10]
     
@@ -288,20 +291,18 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
 
 def download_and_preprocess_document(url):
     """
-    Download document from URL and preprocess it
+    Скачать документ по URL и предобработать его
     
-    Args:
-        url (str): URL to the document
+    Аргументы:
+        url (str): URL документа
         
-    Returns:
-        str: Preprocessed text
+    Возвращает:
+        str: Предобработанный текст
     """
-    from app.services.document_processor import download_doc_from_url
-    
-    # Download and extract text
+    # Скачиваем и извлекаем текст
     raw_text = download_doc_from_url(url)
     
-    # Preprocess
+    # Предобработка
     processed_text, _ = preprocess_text(raw_text)
     
     return processed_text 
