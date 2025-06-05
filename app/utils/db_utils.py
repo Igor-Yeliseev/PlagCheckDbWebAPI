@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
-from app.models.document import DocSignature, Base
+from app.models.doc_signature import DocSignature, Base
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,7 +66,7 @@ def get_signatures_by_ids(document_ids):
 
 def save_embedding_to_db(document_id, embedding):
     """Save document embedding to database"""
-    from app.models.vector_store import DocEmbedding
+    from app.models.doc_embedding import DocEmbedding
     db = SessionLocal()
     try:
         doc_embedding = DocEmbedding(document_id=document_id, embedding=embedding)

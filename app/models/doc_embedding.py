@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import relationship
-from app.models.document import Base
+from app.models.doc_signature import Base, Document
 
 class DocEmbedding(Base):
     """
@@ -9,7 +9,7 @@ class DocEmbedding(Base):
     """
     __tablename__ = 'doc_embeddings'
     
-    document_id = Column(UUID(as_uuid=True), ForeignKey('"Documents"."Id"'), primary_key=True, nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey('Documents.Id'), primary_key=True, nullable=False)
     embedding = Column(ARRAY(Float), nullable=False)
     
     # Relationship с основной таблицей документов

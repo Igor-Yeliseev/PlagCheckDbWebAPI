@@ -7,7 +7,7 @@ from app.services.plag_check_service import (
     find_candidates_with_minhash, 
     check_plagiarism_with_transformers
 )
-from app.models.document import DocSignature
+from app.models.doc_signature import DocSignature
 from app.utils.db_utils import get_signature_by_id, save_signature_to_db
 
 plag_check_bp = Blueprint('plag_check', __name__, url_prefix='/py-api')

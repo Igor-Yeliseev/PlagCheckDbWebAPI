@@ -29,15 +29,14 @@ russian_stopwords = set(stopwords.words('russian'))
 
 # Инициализация трансформерной модели
 model_name = "DeepPavlov/rubert-base-cased-sentence"
-transformer_model = None  # Ленивое создание
+print(f"Загружаю модель {model_name}...")
+transformer_model = SentenceTransformer(model_name)
+print("Модель загружена успешно!")
 
 def get_transformer_model():
     """
-    Получить или инициализировать трансформерную модель
+    Получить предзагруженную трансформерную модель
     """
-    global transformer_model
-    if transformer_model is None:
-        transformer_model = SentenceTransformer(model_name)
     return transformer_model
 
 def preprocess_text(text):
@@ -134,7 +133,7 @@ def find_candidates_with_minhash(shingles, threshold=0.4):
     
     return candidate_ids
 
-def split_text_into_chunks(text, chunk_size=250, overlap=0.3):
+def split_into_chunks(text, chunk_size=250, overlap=0.3):
     """
     Разбить текст на перекрывающиеся чанки
     
@@ -232,7 +231,7 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
     candidates = get_signatures_by_ids(candidate_ids)
     
     # Разбиваем текст запроса на чанки
-    query_chunks = split_text_into_chunks(text, chunk_size, overlap)
+    query_chunks = split_into_chunks(text, chunk_size, overlap)
     
     # Вычисляем эмбеддинги для чанков запроса
     query_embeddings = compute_chunk_embeddings(query_chunks)
@@ -253,7 +252,7 @@ def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, over
         doc_text = download_and_preprocess_document(doc_url)
         
         # Разбиваем на чанки
-        doc_chunks = split_text_into_chunks(doc_text, chunk_size, overlap)
+        doc_chunks = split_into_chunks(doc_text, chunk_size, overlap)
         
         # Вычисляем эмбеддинги
         doc_embeddings = compute_chunk_embeddings(doc_chunks)
