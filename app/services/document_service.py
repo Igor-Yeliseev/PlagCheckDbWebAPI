@@ -1,7 +1,7 @@
 import docx
 import os
 import requests
-from io import BytesIO
+# from io import BytesIO
 import tempfile
 
 def extract_text_from_doc(file_path):

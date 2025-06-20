@@ -7,10 +7,10 @@ from nltk.tokenize import word_tokenize
 import numpy as np
 import pymorphy2
 from datasketch import MinHash, LeanMinHash, MinHashLSH
-from sentence_transformers import SentenceTransformer
 import dask.bag as dask_bag
 from app.utils.db_utils import get_all_signatures, get_signatures_by_ids
 from app.services.document_service import download_doc_from_url
+from app.ml_models import get_transformer_model
 
 # Загрузка необходимых данных NLTK
 try:
@@ -27,17 +27,7 @@ except LookupError:
 morph = pymorphy2.MorphAnalyzer()
 russian_stopwords = set(stopwords.words('russian'))
 
-# Инициализация трансформерной модели
-model_name = "DeepPavlov/rubert-base-cased-sentence"
-print(f"Загружаю модель {model_name}...")
-transformer_model = SentenceTransformer(model_name)
-print("Модель загружена успешно!")
-
-def get_transformer_model():
-    """
-    Получить предзагруженную трансформерную модель
-    """
-    return transformer_model
+# Трансформерная модель теперь загружается в ml_models.py
 
 def preprocess_text(text):
     """
@@ -177,7 +167,7 @@ def compute_chunk_embeddings(chunks):
     
     # Используем Dask для параллелизации
     chunks_bag = dask_bag.from_sequence(chunks)
-    embeddings = chunks_bag.map(lambda x: model.encode(x)).compute()
+    embeddings = chunks_bag.map(lambda x: model.encode(x)).compute() # Вычисляем эмбеддинги для каждого чанка
     
     return np.array(embeddings)
 
@@ -206,7 +196,31 @@ def compute_similarity(emb1, emb2):
     """
     return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
 
-def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, overlap=0.3, similarity_threshold=0.5):
+def check_plagiarism_with_all_docs(text, similarity_threshold=0.5):
+    """
+    Проверяет плагиат, сравнивая со всеми документами в базе данных,
+    используя эмбеддинги трансформеров.
+
+    Аргументы:
+        text (str): Предобработанный текст запроса.
+        similarity_threshold (float): Порог сходства.
+
+    Возвращает:
+        dict: Результат с оценками сходства и деталями.
+    """
+    all_signatures = get_all_signatures()
+    if not all_signatures:
+        return {
+            'max_similarity': 0,
+            'similar_docs': [],
+            'details': 'В базе данных нет документов для сравнения.'
+        }
+    
+    all_doc_ids = [sig.document_id for sig in all_signatures]
+    
+    return check_plagiarism_with_transformers(text, all_doc_ids, similarity_threshold=similarity_threshold)
+
+def check_plagiarism_with_transformers(text, candidate_ids, chunk_size=250, overlap=0.3, similarity_threshold=0.3):
     """
     Проверка плагиата с использованием эмбеддингов трансформеров
     

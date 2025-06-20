@@ -38,5 +38,3 @@ pip install -r requirements.txt
 
 Виртуальное окружение - это изолированное окружение среды (в нашем случае это окружение Python), которое позволяет нам использовать определенные версии приложений.
 Чтобы предотвратить возможный конфликт, пакетный менеджер устанавливает зависимости проекта в его собственную директорию зависимостей - venv.
-
-При обращении к модели (метод compute_chunk_embeddings) в терминале появляется сообщение "No sentence-transformers model found with name C:\Users\IGOR/.cache\torch\sentence_transformers\DeepPavlov_rubert-base-cased-sentence. Creating a new one with MEAN pooling." и модель создается довольно продолжительное время. Создавай её при старте приложения, чтобы не ожидать потом при обращении.
