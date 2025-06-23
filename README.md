@@ -59,33 +59,6 @@ POST /py-api/check-with-db
 Ответ:
 ```json
 {
-  "original": true/false,
-  "message": "Сообщение о результате проверки",
-  "similarity": 0.45,
-  "similar_document_ids": [1, 2, 3],
-  "details": {
-    "1": [
-      {
-        "query_chunk_idx": 2,
-        "doc_chunk_idx": 5,
-        "similarity": 0.75
-      }
-    ]
-  }
+  ,,, Дописать
 }
 ```
-
-### Получение информации о документе-кандидате
-
-```
-GET /py-api/download-candidate/{doc_id}
-```
-
-Ответ:
-```json
-{
-  "id": 1,
-  "url": "https://example.com/document.docx",
-  "message": "Используйте URL для скачивания документа"
-}
-``` 
